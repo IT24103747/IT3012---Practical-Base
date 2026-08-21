@@ -2,6 +2,7 @@
 import random
 from collections import deque
 import heapq
+import math
 
 class GreedyGridAgent:
     """A simple agent that tries to move around systematically to clear the grid."""
@@ -19,7 +20,7 @@ class GreedyGridAgent:
 class SearchAgent:   
     def __init__(self):
         self.plan = []
-        self.active_algo = 'UCS'
+        self.active_algo = 'AStar'
 
     def get_successors(self, state, grid_size, walls):
         x, y = state
@@ -39,10 +40,10 @@ class SearchAgent:
             nx, ny = new_state
 
             if not (0 <= nx < width and 0 <= ny < height):
-                continue  # Out of bounds
+                continue  
 
             if new_state in walls:
-                continue  # Hit a wall
+                continue  
             successors.append((new_state, action))
 
         return successors
@@ -51,7 +52,7 @@ class SearchAgent:
     def bfs_search(self, start, goal, grid_size, walls):
 
         frontier = deque()
-        frontier.append((start, []))  # (state, path)
+        frontier.append((start, []))  
         reached = {start}
 
         while frontier:
@@ -70,7 +71,7 @@ class SearchAgent:
 
     def dfs_search(self, start, goal, grid_size, walls):
         frontier = []
-        frontier.append((start, []))  # (state, path)
+        frontier.append((start, [])) 
         reached = {start}
 
         while frontier:
@@ -90,7 +91,7 @@ class SearchAgent:
     def ucs_search(self, start, goal, grid_size, walls):
         frontier = []
 
-        heapq.heappush(frontier, (0, start, []))  # (cost, state, path)
+        heapq.heappush(frontier, (0, start, []))  
         reached = {}
 
         while frontier:
@@ -106,7 +107,7 @@ class SearchAgent:
 
             for next_state, action in self.get_successors(state, grid_size, walls):
 
-                new_cost = cost + 1  # Assuming uniform cost for each move
+                new_cost = cost + 1  
 
                 new_path = path + [action]
 
@@ -122,6 +123,49 @@ class SearchAgent:
 
         return []
 
+    def manhattan_distance(self, pos, goal):
+        return abs(pos[0] - goal[0]) + abs(pos[1] - goal[1])
+
+    def euclidean_distance(self, pos, goal):
+        return math.sqrt((pos[0] - goal[0])**2 + (pos[1] - goal[1])**2)
+
+    def astar_search(self, start_pos, goal_pos, grid_size, walls, heuristic_type='manhattan'):
+        frontier = []
+        reached_states = set()
+        
+        if heuristic_type == 'manhattan':
+            h_cost = self.manhattan_distance(start_pos, goal_pos)
+        else:
+            h_cost = self.euclidean_distance(start_pos, goal_pos)
+            
+        heapq.heappush(frontier, (h_cost, 0, start_pos, []))
+        
+        while frontier:
+            f_cost, g_cost, current_pos, path_taken = heapq.heappop(frontier)
+            
+            if current_pos == goal_pos:
+                return path_taken
+                
+            if current_pos in reached_states:
+                continue
+                
+            reached_states.add(current_pos)
+            
+            for next_state, action in self.get_successors(current_pos, grid_size, walls):
+                if next_state not in reached_states:
+                    g_new = g_cost + 1  
+                    
+                    if heuristic_type == 'manhattan':
+                        h_new = self.manhattan_distance(next_state, goal_pos)
+                    else:
+                        h_new = self.euclidean_distance(next_state, goal_pos)
+                        
+                    f_new = g_new + h_new
+                    new_path = path_taken + [action]
+                    
+                    heapq.heappush(frontier, (f_new, g_new, next_state, new_path))
+                    
+        return []    
 
     def find_closest_food(self, start, all_food):
 
@@ -130,7 +174,6 @@ class SearchAgent:
 
         x, y = start
 
-        # Manhattan distance
         return min(
             all_food,
             key=lambda food:
@@ -139,25 +182,21 @@ class SearchAgent:
 
     def sense_and_act(self, percept: dict) -> str:
 
-        # Only search when the previous plan is finished
         if not self.plan:
 
             start = percept['agent_pos']
             grid_size = percept['grid_size']
             walls = set(percept['walls'])
-            all_food = percept['all_food']
+            all_food = percept.get('all_food', percept.get('remaining_food',[]))
 
-            # No food remaining
             if not all_food:
                 return 'Stay'
 
-            # Select the closest food pellet
             goal = self.find_closest_food(
                 start,
                 all_food
             )
 
-            # Run selected search algorithm
             if self.active_algo == 'BFS':
 
                 self.plan = self.bfs_search(
@@ -185,12 +224,29 @@ class SearchAgent:
                     walls
                 )
 
+            elif self.active_algo == 'AStar':
+
+                self.plan = self.astar_search(
+                    start,
+                    goal,
+                    grid_size,
+                    walls,
+                    heuristic_type = 'manhattan'
+                )    
+
             else:
                 print("Invalid search algorithm")
                 return 'Stay'
 
-        # Execute the first action in the generated plan
         if self.plan:
             return self.plan.pop(0)
 
-        return 'Stay'           
+        return 'Stay'      
+
+if __name__ == "__main__":
+    agent = SearchAgent()
+    start = (0, 0)
+    goal = (3, 4)
+    
+    print("Manhattan Distance:", agent.manhattan_distance(start, goal))  
+    print("Euclidean Distance:", agent.euclidean_distance(start, goal))  

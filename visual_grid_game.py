@@ -10,7 +10,7 @@ class VisualGridHuntGame:
     def __init__(self, width=10, height=10, num_food=10, num_opponents=2, custom_walls=None):
         self.width = width
         self.height = height
-        self.agent_pos = [0, 3]  # Starting position (x, y)
+        self.agent_pos = [0, 0]  # Starting position (x, y)
 
         if custom_walls is not None:
             self.walls = set(custom_walls)
