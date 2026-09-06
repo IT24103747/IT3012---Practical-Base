@@ -1,8 +1,9 @@
-# agent.py
 import random
 from collections import deque
 import heapq
 import math
+
+from logic_engine import KnowledgeBase
 
 class GreedyGridAgent:
     """A simple agent that tries to move around systematically to clear the grid."""
@@ -21,6 +22,25 @@ class SearchAgent:
     def __init__(self):
         self.plan = []
         self.active_algo = 'AStar'
+
+        # Practical 05: propositional Knowledge Base used to check logical feasibility.
+        self.kb = KnowledgeBase()
+        self.kb.tell_rule(['TargetVisible', 'HasDust'], 'SafeToEngage')
+        self.kb.tell_rule(['SafeToEngage', 'BloodseekerMissing'], 'Retreat')
+
+    def is_feasible(self, tile_facts):
+        """Return False when the KB proves that this tile requires Retreat.
+
+        tile_facts is an iterable of percept strings for one candidate tile.
+        The rules remain stored in the KB, but the facts are cleared for every tile.
+        """
+        self.kb.clear_facts()
+
+        for fact in tile_facts:
+            self.kb.tell_fact(fact)
+
+        self.kb.forward_chain()
+        return 'Retreat' not in self.kb.facts
 
     def get_successors(self, state, grid_size, walls):
         x, y = state
@@ -129,9 +149,10 @@ class SearchAgent:
     def euclidean_distance(self, pos, goal):
         return math.sqrt((pos[0] - goal[0])**2 + (pos[1] - goal[1])**2)
 
-    def astar_search(self, start_pos, goal_pos, grid_size, walls, heuristic_type='manhattan'):
+    def astar_search(self, start_pos, goal_pos, grid_size, walls, heuristic_type='manhattan', tile_facts=None):
         frontier = []
         reached_states = set()
+        tile_facts = tile_facts or {}
         
         if heuristic_type == 'manhattan':
             h_cost = self.manhattan_distance(start_pos, goal_pos)
@@ -153,6 +174,12 @@ class SearchAgent:
             
             for next_state, action in self.get_successors(current_pos, grid_size, walls):
                 if next_state not in reached_states:
+                    # Reachability was already checked by get_successors() (bounds/walls).
+                    # Practical 05 now checks logical feasibility before adding the node.
+                    percepts_for_tile = tile_facts.get(next_state, [])
+                    if not self.is_feasible(percepts_for_tile):
+                        continue
+
                     g_new = g_cost + 1  
                     
                     if heuristic_type == 'manhattan':
@@ -188,6 +215,8 @@ class SearchAgent:
             grid_size = percept['grid_size']
             walls = set(percept['walls'])
             all_food = percept.get('all_food', percept.get('remaining_food',[]))
+            # Optional mapping: {(x, y): ['TargetVisible', 'HasDust', ...]}
+            tile_facts = percept.get('tile_facts', {})
 
             if not all_food:
                 return 'Stay'
@@ -231,7 +260,8 @@ class SearchAgent:
                     goal,
                     grid_size,
                     walls,
-                    heuristic_type = 'manhattan'
+                    heuristic_type='manhattan',
+                    tile_facts=tile_facts
                 )    
 
             else:
