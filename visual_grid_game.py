@@ -7,10 +7,12 @@ from agent import SearchAgent
 class VisualGridHuntGame:
     """A flexible Pacman-style grid environment with support for configurable opponents and larger scales."""
 
-    def __init__(self, width=10, height=10, num_food=10, num_opponents=2, custom_walls=None):
+    def __init__(self, width=10, height=10, num_food=10, num_opponents=2, custom_walls=None, tile_facts=None):
         self.width = width
         self.height = height
         self.agent_pos = [0, 0]  # Starting position (x, y)
+
+        self.tile_facts = tile_facts or {}
 
         if custom_walls is not None:
             self.walls = set(custom_walls)
@@ -86,7 +88,8 @@ class VisualGridHuntGame:
             "agent_pos": tuple(self.agent_pos),
             "grid_size": (self.width, self.height),
             "walls": list(self.walls),
-            "all_food": list(self.food_positions)
+            "all_food": list(self.food_positions),
+            "tile_facts": self.tile_facts
         }
 
     def execute_action(self, action: str):
@@ -185,13 +188,13 @@ class GridGameGUI:
     """Tkinter wrapper that dynamically scales cell sizes to keep larger grids on screen."""
     
 
-    def __init__(self, root, width=10, height=10, num_food=12, num_opponents=2, walls=None):
+    def __init__(self, root, width=10, height=10, num_food=12, num_opponents=2, walls=None, tile_facts=None):
         self.root = root
         self.root.title("IT3012 - Scalable Multi-Agent Grid Hunt")
         self.agent = SearchAgent()
 
         self.env = VisualGridHuntGame(width=width, height=height, num_food=num_food, num_opponents=num_opponents,
-                                      custom_walls=walls)
+                                      custom_walls=walls, tile_facts=tile_facts)
 
         # Dynamically calculate cell size so the total canvas fits nicely within a 600x600 window ceiling
         max_canvas_dim = 600
@@ -287,6 +290,12 @@ class GridGameGUI:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    # Try a larger grid size like 12x12 with 15 food and 3 opponents!
-    app = GridGameGUI(root, width=12, height=12, num_food=15, num_opponents=0)
+
+    app = GridGameGUI(
+        root,
+        width=12,
+        height=12,
+        num_food=15,
+        num_opponents=0,
+    )
     root.mainloop()
